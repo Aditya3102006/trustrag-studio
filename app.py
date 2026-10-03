@@ -161,6 +161,7 @@ def _init_state():
         "last_retrieved":    None,
         "last_meta":         None,
         "roadmap_reports":   {},       # map doc_name -> {"markdown", "meta"}
+        "isolate_custom_docs": True,   # Isolate uploaded docs from default 106 base chunks to prevent cross-topic pollution
         "gemini_api_key":    os.environ.get("GEMINI_API_KEY", ""),
         "groq_api_key":      os.environ.get("GROQ_API_KEY", ""),
         "openai_api_key":    os.environ.get("OPENAI_API_KEY", ""),
@@ -181,15 +182,22 @@ def _load_default_index():
 _default_index, _ = _load_default_index()
 
 def _rebuild_combined_index():
-    """Merge default KB + all custom chunks and rebuild FAISS index."""
-    all_chunks = list(DEFAULT_DOCS) + st.session_state.custom_chunks
+    """Build FAISS index. When custom documents are present and isolation is enabled, uses only custom docs."""
+    isolate = st.session_state.get("isolate_custom_docs", True)
+    if isolate and st.session_state.custom_chunks:
+        all_chunks = list(st.session_state.custom_chunks)
+    elif st.session_state.custom_chunks:
+        all_chunks = list(DEFAULT_DOCS) + list(st.session_state.custom_chunks)
+    else:
+        all_chunks = list(DEFAULT_DOCS)
+
     idx, _ = build_index(all_chunks)
     st.session_state.combined_index = idx
-    st.session_state.combined_docs   = all_chunks
+    st.session_state.combined_docs = all_chunks
 
 def get_active_index():
     """Return the currently active (index, docs) pair."""
-    if st.session_state.combined_index is not None:
+    if st.session_state.combined_index is not None and st.session_state.combined_docs is not None:
         return st.session_state.combined_index, st.session_state.combined_docs
     return _default_index, DEFAULT_DOCS
 
@@ -896,9 +904,22 @@ with st.sidebar:
 
     # ── 2. Knowledge Base Index Status & Document Registry ─────────────────────
     st.markdown("### 📚 Knowledge Corpus")
-    active_idx, active_corpus = get_active_index()
     n_default = len(DEFAULT_DOCS)
     n_custom = len(st.session_state.custom_chunks)
+
+    if n_custom > 0:
+        isolate = st.toggle(
+            "🔒 Isolate Uploaded Docs",
+            value=st.session_state.get("isolate_custom_docs", True),
+            help="When enabled, vector search uses ONLY your uploaded documents and excludes the 106 default AI/ML chunks to eliminate cross-topic pollution.",
+            key="toggle_isolate_docs"
+        )
+        if isolate != st.session_state.get("isolate_custom_docs", True):
+            st.session_state.isolate_custom_docs = isolate
+            _rebuild_combined_index()
+            st.rerun()
+
+    active_idx, active_corpus = get_active_index()
     n_total = len(active_corpus) if active_corpus else n_default
 
     c1, c2 = st.columns(2)
@@ -906,7 +927,7 @@ with st.sidebar:
         st.markdown(f"""
         <div class="sb-doc-card" style="text-align:center;">
           <div style="font-size:1.25rem; font-weight:900; color:#60a5fa;">{n_total}</div>
-          <div style="font-size:0.7rem; color:#93b4ff;">Total Chunks</div>
+          <div style="font-size:0.7rem; color:#93b4ff;">Active Chunks</div>
         </div>
         """, unsafe_allow_html=True)
     with c2:
@@ -917,9 +938,16 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
+    if n_custom > 0 and st.session_state.get("isolate_custom_docs", True):
+        badge_html = f"🔒 Isolated: {n_custom} Custom Chunks (Base AI/ML Chunks Excluded)"
+    elif n_custom > 0:
+        badge_html = f"🔷 {n_default} Base Chunks &nbsp;·&nbsp; 📄 {n_custom} Custom Chunks"
+    else:
+        badge_html = f"🔷 {n_default} Base Chunks Active"
+
     st.markdown(f"""
     <div style="font-size:0.72rem; color:#93b4ff; margin-top:2px; margin-bottom:8px; text-align:center;">
-      🔷 {n_default} Base Chunks &nbsp;·&nbsp; 📄 {n_custom} Custom Chunks
+      {badge_html}
     </div>
     """, unsafe_allow_html=True)
 
