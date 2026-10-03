@@ -465,7 +465,13 @@ textarea:focus {
     outline: none !important;
 }
 
-.stButton > button {
+.stButton > button,
+.stDownloadButton > button,
+.stDownloadButton > a,
+div[data-testid="stDownloadButton"] button,
+div[data-testid="stDownloadButton"] a,
+button[kind="secondary"],
+button[kind="primary"] {
     background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%) !important;
     color: #ffffff !important;
     font-weight: 700 !important;
@@ -475,12 +481,46 @@ textarea:focus {
     padding: 0.6rem 1.2rem !important;
     box-shadow: 0 4px 12px rgba(29, 78, 216, 0.25) !important;
     transition: all 0.2s ease !important;
+    text-decoration: none !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
 }
 
-.stButton > button:hover {
+.stButton > button *,
+.stDownloadButton > button *,
+.stDownloadButton > a *,
+div[data-testid="stDownloadButton"] button *,
+div[data-testid="stDownloadButton"] a *,
+button[kind="secondary"] *,
+button[kind="primary"] * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
+}
+
+.stButton > button:hover,
+.stDownloadButton > button:hover,
+.stDownloadButton > a:hover,
+div[data-testid="stDownloadButton"] button:hover,
+div[data-testid="stDownloadButton"] a:hover,
+button[kind="secondary"]:hover,
+button[kind="primary"]:hover {
     background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%) !important;
     box-shadow: 0 6px 18px rgba(29, 78, 216, 0.35) !important;
     transform: translateY(-1px) !important;
+    color: #ffffff !important;
+    text-decoration: none !important;
+}
+
+.stButton > button:hover *,
+.stDownloadButton > button:hover *,
+.stDownloadButton > a:hover *,
+div[data-testid="stDownloadButton"] button:hover *,
+div[data-testid="stDownloadButton"] a:hover *,
+button[kind="secondary"]:hover *,
+button[kind="primary"]:hover * {
+    color: #ffffff !important;
+    fill: #ffffff !important;
 }
 
 /* ── Streamlit Tabs Styling (Single-Row, Balanced, High Contrast) ───────── */
