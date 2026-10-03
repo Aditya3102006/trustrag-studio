@@ -255,7 +255,7 @@ def generate_document_roadmap(
 
     t1 = time.perf_counter()
     if "Gemini" in llm_provider:
-        roadmap_text = generate_with_gemini(prompt, api_key=api_key, model_name="gemini-3.6-flash")
+        roadmap_text = generate_with_gemini(prompt, api_key=api_key, model_name="gemini-1.5-flash")
     elif "Groq" in llm_provider:
         roadmap_text = generate_with_groq(prompt, api_key=api_key, model_name="llama-3.3-70b-versatile")
     elif "OpenAI" in llm_provider:

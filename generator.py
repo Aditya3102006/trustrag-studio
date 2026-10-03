@@ -51,9 +51,9 @@ def generate_with_gemini(prompt: str, api_key: str, model_name: str = "gemini-1.
     if not api_key:
         raise ValueError("Google Gemini API Key is required. Get a free key at https://aistudio.google.com/")
 
-    candidate_models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-2.5-flash", "gemma-4-26b-a4b-it", "gemini-1.5-flash", "gemini-pro"]
+    candidate_models = [model_name, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]
     seen = set()
-    models_to_try = [m for m in candidate_models if not (m in seen or seen.add(m))]
+    models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
 
     last_err = ""
     for m in models_to_try:
