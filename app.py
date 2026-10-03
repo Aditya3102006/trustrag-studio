@@ -1284,7 +1284,7 @@ with tab_eval:
         if not results:
             st.info("No sentence output generated.")
         for idx, r in enumerate(results, 1):
-            is_rel = "RELIABLE" in r["label"]
+            is_rel = r.get("is_reliable", r.get("label", "").startswith("✅"))
             card_class = "trust-box-reliable" if is_rel else "trust-box-unreliable"
             tag = (
                 '<span class="badge-tag-reliable">✅ RELIABLE</span>'

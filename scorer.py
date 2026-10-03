@@ -59,19 +59,25 @@ def sentence_entropies(text: str, token_entropies: list, tokenizer) -> list:
 
 def sentence_similarity(sentences: list, retrieved_docs: list) -> list:
     """
-    Compute cosine similarity between each generated sentence and
-    the concatenated retrieved context.
+    Compute cosine similarity between each generated sentence and the retrieved chunks.
+    Uses max similarity across retrieved chunks (batch computed via SBERT matrix multiplication)
+    so that adding more chunks (higher top-k) does NOT dilute the score of a sentence
+    that is directly grounded in a specific chunk.
 
     Returns: list of float similarity scores in [0, 1].
     """
-    context = " ".join(retrieved_docs)
-    context_emb = _sbert.encode(context, convert_to_tensor=True)
-    sims = []
-    for sent in sentences:
-        sent_emb = _sbert.encode(sent, convert_to_tensor=True)
-        sim = util.cos_sim(sent_emb, context_emb).item()
-        sims.append(sim)
-    return sims
+    if not retrieved_docs or not sentences:
+        return [0.0] * len(sentences)
+
+    chunk_embs = _sbert.encode(retrieved_docs, convert_to_tensor=True)
+    sent_embs = _sbert.encode(sentences, convert_to_tensor=True)
+
+    # cos_matrix shape: [num_sentences, num_chunks]
+    cos_matrix = util.cos_sim(sent_embs, chunk_embs)
+
+    # Max similarity across all retrieved chunks for each sentence
+    max_sims = torch.max(cos_matrix, dim=1).values.cpu().tolist()
+    return [round(max(0.0, float(s)), 3) for s in max_sims]
 
 
 # ── Trust score ────────────────────────────────────────────────────────────────

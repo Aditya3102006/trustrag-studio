@@ -79,15 +79,16 @@ def run_pipeline(
         answer, scores, token_ids = generate_with_logits(prompt)
     elif "Gemini" in llm_provider:
         prompt = (
-            "You are an expert AI research assistant. Answer the user's question with thorough, comprehensive, "
-            "and structured technical depth based on the provided document context.\n\n"
+            "You are an expert technical assistant. Answer the user's question directly, factually, "
+            "and with structured technical depth based strictly on the provided document context.\n\n"
             "INSTRUCTIONS:\n"
-            "1. Base your direct answers primarily on the retrieved evidence below.\n"
-            "2. If the user asks for advancements, features, or architectural recommendations, synthesize practical technical improvements from the context.\n"
-            "3. Structure your response with clear headings, bullet points, and concise explanations.\n\n"
+            "1. Base your answer strictly on the retrieved evidence below.\n"
+            "2. Do NOT echo or repeat the user question, prompt instructions, or role.\n"
+            "3. Do NOT include meta-intros or preambles like 'Based on the provided context...'. Start immediately with the direct technical answer.\n"
+            "4. Structure your response with clear headings, bullet points, and concise explanations.\n\n"
             f"### RETRIEVED CONTEXT:\n{context}\n\n"
             f"### USER QUESTION:\n{query}\n\n"
-            "### COMPREHENSIVE RESPONSE:"
+            "### DIRECT FACTUAL RESPONSE:"
         )
         answer = generate_with_gemini(prompt, api_key=api_key, model_name="gemini-1.5-flash")
         scores = None
@@ -130,14 +131,13 @@ def run_pipeline(
         sent_ent = sentence_entropies(answer, entropies, tokenizer)
         sentences = [s[0] for s in sent_ent] if sent_ent else raw_sentences
         ent_values = [s[1] for s in sent_ent] if sent_ent else [0.2] * len(sentences)
+        sim_values = sentence_similarity(sentences, retrieved) if retrieved else [0.0] * len(sentences)
     else:
         # For Cloud LLMs: compute calibrated entropy based on semantic grounding
         sentences = raw_sentences
         sim_values = sentence_similarity(sentences, retrieved) if retrieved else [0.0] * len(sentences)
         # Higher grounding similarity = lower entropy (higher confidence)
         ent_values = [round(max(0.05, (1.0 - sim) * 0.8), 3) for sim in sim_values]
-
-    sim_values = sentence_similarity(sentences, retrieved) if retrieved else [0.0] * len(sentences)
 
     results = []
     trust_scores = []
@@ -146,19 +146,21 @@ def run_pipeline(
         ent = ent_values[i] if i < len(ent_values) else 0.2
         trust = compute_trust(sim, ent)
         trust_scores.append(trust)
-        label = "✅ RELIABLE" if trust >= trust_threshold else "❌ UNRELIABLE"
+        is_rel = bool(trust >= trust_threshold)
+        label = "✅ RELIABLE" if is_rel else "❌ UNRELIABLE"
         results.append({
             "sentence":    sent,
             "similarity":  round(sim, 3),
             "entropy":     round(ent, 3),
             "trust_score": round(trust, 3),
             "label":       label,
+            "is_reliable": is_rel,
         })
 
     t_score = time.perf_counter() - t2
     t_total = time.perf_counter() - t0
 
-    reliable_n = sum(1 for r in results if "RELIABLE" in r["label"])
+    reliable_n = sum(1 for r in results if r["is_reliable"])
     avg_trust = round(sum(trust_scores) / len(trust_scores), 3) if trust_scores else 0.0
     avg_sim = round(sum(sim_values) / len(sim_values), 3) if sim_values else 0.0
     avg_ent = round(sum(ent_values) / len(ent_values), 3) if ent_values else 0.0
