@@ -2,9 +2,12 @@
 
 > **Multi-Engine Grounding & Trust Auditor** — A Retrieval-Augmented Generation (RAG) pipeline with built-in hallucination detection, trust scoring, and multi-model support.
 
-[![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://trustrag-studio.streamlit.app/)
+[![Built with Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io)
 [![Python](https://img.shields.io/badge/Python-3.9%2B-3776AB?logo=python&logoColor=white)](https://python.org)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+🚀 **Live Demo:** [https://trustrag-studio.streamlit.app/](https://trustrag-studio.streamlit.app/)
 
 ---
 
@@ -111,13 +114,20 @@ Open your browser at: **http://localhost:8501**
 
 ---
 
-## 🌐 Deploy on Streamlit Cloud (Free)
+## 🌐 Live Cloud Deployment
 
-1. Push this repo to GitHub
+The live application is hosted on Streamlit Community Cloud:
+👉 **[https://trustrag-studio.streamlit.app/](https://trustrag-studio.streamlit.app/)**
+
+### Deploying Your Own Fork:
+1. Fork or push this repository to GitHub
 2. Go to [share.streamlit.io](https://share.streamlit.io)
-3. Connect your GitHub account
-4. Select this repo → `app.py` → Deploy
-5. Add `GEMINI_API_KEY` in the Secrets section
+3. Select this repo → Branch `main` → Main file `app.py` → Deploy
+4. (Optional) In **Advanced settings** > **Secrets**, configure:
+   ```toml
+   GEMINI_API_KEY = "your_gemini_api_key_here"
+   ```
+
 
 ---
 
