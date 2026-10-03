@@ -46,16 +46,17 @@ def generate_with_logits(prompt: str, max_new_tokens: int = 400):
 def generate_with_gemini(prompt: str, api_key: str, model_name: str = "gemini-1.5-flash") -> str:
     """
     Call Google Gemini Free API directly via official REST endpoint.
-    Automatically tries supported model candidates (gemini-1.5-flash, gemini-2.0-flash, gemini-2.5-flash, gemini-pro).
+    Automatically tries supported model candidates (gemini-1.5-flash, gemini-2.0-flash, gemini-1.5-flash-8b, gemini-1.5-pro).
     """
+    api_key = (api_key or "").strip()
     if not api_key:
         raise ValueError("Google Gemini API Key is required. Get a free key at https://aistudio.google.com/")
 
-    candidate_models = [model_name, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro", "gemini-pro"]
+    candidate_models = [model_name, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"]
     seen = set()
     models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
 
-    last_err = ""
+    errors = []
     for m in models_to_try:
         url = f"https://generativelanguage.googleapis.com/v1beta/models/{m}:generateContent?key={api_key}"
         payload = {
@@ -69,17 +70,30 @@ def generate_with_gemini(prompt: str, api_key: str, model_name: str = "gemini-1.
         }
         headers = {"Content-Type": "application/json"}
         try:
-            response = requests.post(url, json=payload, headers=headers, timeout=45)
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
             if response.status_code == 200:
                 data = response.json()
                 if "candidates" in data and data["candidates"]:
-                    return data["candidates"][0]["content"]["parts"][0]["text"].strip()
+                    candidate = data["candidates"][0]
+                    if "content" in candidate and "parts" in candidate["content"] and candidate["content"]["parts"]:
+                        part_text = candidate["content"]["parts"][0].get("text", "").strip()
+                        if part_text:
+                            return part_text
+                    finish_reason = candidate.get("finishReason", "UNKNOWN")
+                    errors.append(f"{m}: stopped with finishReason={finish_reason}")
+                else:
+                    errors.append(f"{m}: empty candidates in response")
             else:
-                last_err = f"{m} returned {response.status_code}: {response.text[:200]}"
+                try:
+                    err_json = response.json()
+                    msg = err_json.get("error", {}).get("message", response.text[:120])
+                except Exception:
+                    msg = response.text[:120]
+                errors.append(f"{m} ({response.status_code}): {msg}")
         except Exception as e:
-            last_err = str(e)
+            errors.append(f"{m} failed: {e}")
 
-    raise RuntimeError(f"Gemini API Error: {last_err}")
+    raise RuntimeError(f"Gemini API Error: {' | '.join(errors)}")
 
 
 # ── 3. Groq API (Free Tier — High Speed Llama-3.3 70B) ─────────────────────────

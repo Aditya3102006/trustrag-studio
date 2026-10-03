@@ -149,6 +149,17 @@ DEFAULT_DOCS = [
 # ══════════════════════════════════════════════════════════════════════════════
 # SESSION STATE INITIALIZATION
 # ══════════════════════════════════════════════════════════════════════════════
+def _get_api_key(key_name: str, default: str = "") -> str:
+    """Read API key from Streamlit Cloud Secrets (st.secrets) or OS environment."""
+    try:
+        if hasattr(st, "secrets") and key_name in st.secrets:
+            val = str(st.secrets[key_name]).strip()
+            if val:
+                return val
+    except Exception:
+        pass
+    return os.environ.get(key_name, default).strip()
+
 def _init_state():
     defaults = {
         "uploaded_docs":     [],
@@ -162,9 +173,9 @@ def _init_state():
         "last_meta":         None,
         "roadmap_reports":   {},       # map doc_name -> {"markdown", "meta"}
         "isolate_custom_docs": True,   # Isolate uploaded docs from default 106 base chunks to prevent cross-topic pollution
-        "gemini_api_key":    os.environ.get("GEMINI_API_KEY", ""),
-        "groq_api_key":      os.environ.get("GROQ_API_KEY", ""),
-        "openai_api_key":    os.environ.get("OPENAI_API_KEY", ""),
+        "gemini_api_key":    _get_api_key("GEMINI_API_KEY"),
+        "groq_api_key":      _get_api_key("GROQ_API_KEY"),
+        "openai_api_key":    _get_api_key("OPENAI_API_KEY"),
     }
     for k, v in defaults.items():
         if k not in st.session_state:
@@ -1002,6 +1013,43 @@ with st.sidebar:
         help="Number of most relevant context chunks retrieved from FAISS.",
     )
 
+    st.divider()
+
+    # ── 4. Cloud API Configuration ─────────────────────────────────────────────
+    st.markdown("### 🔑 API Key Settings")
+    with st.expander("Cloud API Credentials", expanded=not bool(st.session_state.get("gemini_api_key"))):
+        st.markdown(
+            "<div style='font-size:0.74rem; color:#93b4ff; margin-bottom:6px;'>"
+            "Enter free API keys for Google Gemini or Groq Cloud:</div>",
+            unsafe_allow_html=True
+        )
+        gemini_val = st.text_input(
+            "Google Gemini API Key",
+            value=st.session_state.get("gemini_api_key", ""),
+            type="password",
+            placeholder="AIzaSy...",
+            help="Free key from Google AI Studio: https://aistudio.google.com/",
+            key="ui_gemini_key",
+        )
+        if gemini_val != st.session_state.get("gemini_api_key", ""):
+            st.session_state.gemini_api_key = gemini_val.strip()
+
+        groq_val = st.text_input(
+            "Groq API Key (Optional)",
+            value=st.session_state.get("groq_api_key", ""),
+            type="password",
+            placeholder="gsk_...",
+            help="Free key from Groq Console: https://console.groq.com/",
+            key="ui_groq_key",
+        )
+        if groq_val != st.session_state.get("groq_api_key", ""):
+            st.session_state.groq_api_key = groq_val.strip()
+
+        if st.session_state.get("gemini_api_key"):
+            st.markdown("<div style='font-size:0.72rem; color:#4ade80;'>✅ Gemini API Key Ready</div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='font-size:0.72rem; color:#f87171;'>⚠️ No Gemini Key detected — paste above</div>", unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # MAIN AREA
@@ -1151,11 +1199,11 @@ with btn_col3:
 
 # Automatically resolve active API key behind the scenes
 if "Gemini" in engine_choice:
-    active_api_key = st.session_state.get("gemini_api_key", os.getenv("GEMINI_API_KEY", ""))
+    active_api_key = (st.session_state.get("gemini_api_key") or _get_api_key("GEMINI_API_KEY")).strip()
 elif "Groq" in engine_choice:
-    active_api_key = st.session_state.get("groq_api_key", os.getenv("GROQ_API_KEY", ""))
+    active_api_key = (st.session_state.get("groq_api_key") or _get_api_key("GROQ_API_KEY")).strip()
 elif "OpenAI" in engine_choice:
-    active_api_key = st.session_state.get("openai_api_key", os.getenv("OPENAI_API_KEY", ""))
+    active_api_key = (st.session_state.get("openai_api_key") or _get_api_key("OPENAI_API_KEY")).strip()
 else:
     active_api_key = ""
 
