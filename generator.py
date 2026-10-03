@@ -43,18 +43,60 @@ def generate_with_logits(prompt: str, max_new_tokens: int = 400):
 
 # ── 2. Google Gemini API (Free Tier via Google AI Studio) ──────────────────────
 
-def generate_with_gemini(prompt: str, api_key: str, model_name: str = "gemini-1.5-flash") -> str:
+_discovered_gemini_models = {}
+
+def _fetch_available_gemini_models(api_key: str) -> list:
+    """Dynamically query Google AI Studio ModelService to discover all models supporting generateContent."""
+    if api_key in _discovered_gemini_models:
+        return _discovered_gemini_models[api_key]
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+    try:
+        resp = requests.get(url, timeout=8)
+        if resp.status_code == 200:
+            data = resp.json()
+            models = []
+            for item in data.get("models", []):
+                methods = item.get("supportedGenerationMethods", [])
+                if "generateContent" in methods:
+                    name = item.get("name", "").replace("models/", "")
+                    if name:
+                        models.append(name)
+            # Prioritize flash models, then pro
+            flash_models = [m for m in models if "flash" in m.lower()]
+            other_models = [m for m in models if "flash" not in m.lower()]
+            sorted_models = flash_models + other_models
+            _discovered_gemini_models[api_key] = sorted_models
+            return sorted_models
+    except Exception:
+        pass
+    return []
+
+
+def generate_with_gemini(prompt: str, api_key: str, model_name: str = "gemini-3.8-flash") -> str:
     """
     Call Google Gemini Free API directly via official REST endpoint.
-    Automatically tries supported model candidates (gemini-1.5-flash, gemini-2.0-flash, gemini-1.5-flash-8b, gemini-1.5-pro).
+    Automatically prioritizes modern gemini-3.8-flash and dynamically queries available models.
     """
     api_key = (api_key or "").strip()
     if not api_key:
         raise ValueError("Google Gemini API Key is required. Get a free key at https://aistudio.google.com/")
 
-    candidate_models = [model_name, "gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"]
+    # 1. Hardcoded high-priority candidate order recommended by Google
+    initial_candidates = [
+        model_name,
+        "gemini-3.8-flash",
+        "gemini-2.5-flash",
+        "gemini-flash-latest",
+        "gemini-2.0-flash",
+        "gemini-1.5-flash",
+    ]
+
+    # 2. Dynamic discovery fallback from Google AI Studio ModelService
+    discovered = _fetch_available_gemini_models(api_key)
+    all_candidates = initial_candidates + discovered
+
     seen = set()
-    models_to_try = [m for m in candidate_models if m and not (m in seen or seen.add(m))]
+    models_to_try = [m for m in all_candidates if m and not (m in seen or seen.add(m))]
 
     errors = []
     for m in models_to_try:
